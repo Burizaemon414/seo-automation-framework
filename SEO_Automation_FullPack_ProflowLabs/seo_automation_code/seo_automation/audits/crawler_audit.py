@@ -1,0 +1,2 @@
+# Crawl sitemap URLs, respect robots.txt, and emit indexability report (skeleton).
+print("crawler_audit: read sitemap, fetch HEAD, detect robots/noindex/canonical/redirect/soft404 -> exports/tech_index.csv")

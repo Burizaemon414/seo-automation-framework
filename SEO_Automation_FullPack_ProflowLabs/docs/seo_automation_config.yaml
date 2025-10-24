@@ -1,0 +1,92 @@
+# SEO Automation Config for Proflow Labs (v1)
+updated: "2025-10-24T17:39:44.111592Z"
+
+project:
+  name: "SEO EXPERT for Proflow Labs"
+  website_stack:
+    frontend: "Next.js"
+    cms: "Strapi"
+    hosting: "Vercel (assumed)"
+    repo: "github.com/your-org/your-repo"
+
+data_sources:
+  gsc:
+    property: "https://www.example.com"
+    auth: "service_account.json"
+    dimensions: ["page", "query", "date", "country", "device"]
+    metrics: ["clicks", "impressions", "ctr", "position"]
+  ga4:
+    property_id: "G-XXXXXXX"
+    auth: "service_account.json"
+    events: ["page_view", "session_start", "purchase"]
+  pagespeed:
+    api_key: "env:PAGESPEED_API_KEY"
+    strategy: ["mobile","desktop"]
+  serp_api:
+    provider: "serpapi | dataforseo | custom"
+    api_key: "env:SERP_API_KEY"
+  backlink_api:
+    provider: "ahrefs | semrush | majestic"
+    api_key: "env:BACKLINK_API_KEY"
+
+storage:
+  warehouse: "BigQuery | DuckDB | SQLite"
+  bucket: "gs://proflow-seo"
+  tables:
+    - name: "gsc_daily"
+    - name: "ga4_landing"
+    - name: "serp_features"
+    - name: "cwvs_history"
+    - name: "keywords_universe"
+
+pipelines:
+  - id: "gsc_pull"
+    schedule: "0 6 * * *"  # every day 06:00
+    extract: "gsc"
+    load: "warehouse:gsc_daily"
+    transform:
+      - "aggregate by (query,page,date)"
+      - "join canonical urls from Strapi export"
+  - id: "cwvs_collect"
+    schedule: "30 6 * * *"
+    extract: "pagespeed for canonical urls"
+    load: "warehouse:cwvs_history"
+    transform:
+      - "compute rolling 28d medians"
+      - "flag regressions > 10%"
+  - id: "serp_scan"
+    schedule: "0 */12 * * *"  # every 12 hours
+    extract: "SERP features & top 10 positions for priority keywords"
+    load: "warehouse:serp_features"
+  - id: "keyword_refresh"
+    schedule: "15 6 * * 1"   # Mondays
+    extract: "CPC, KD, Volatility from provider"
+    load: "warehouse:keywords_universe"
+  - id: "strapi_sync"
+    schedule: "*/20 * * * *" # every 20 minutes
+    extract: "Strapi entries (articles, categories, slugs, status)"
+    transform:
+      - "validate required SEO fields (title, meta, og, schema)"
+      - "auto-generate sitemap partials"
+      - "suggest internal links for new drafts"
+    load: "cms:strapi"
+
+actions:
+  deploy_triggers:
+    - when: "Master Priority improves for a draft topic"
+      then: "create ticket in GitHub Projects"
+    - when: "Top page drops >3 positions for 3 days"
+      then: "post Slack alert #seo-ops"
+  webhooks:
+    slack: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+    vercel: "https://api.vercel.com/v1/integrations/deploy/prj_xxx/xxx"
+
+exports:
+  dashboard_excel: "/mnt/data/SEO_Intelligence_v2.xlsx"
+  next_sitemap: "out/sitemap.xml"
+  content_plan_csv: "out/content_plan.csv"
+
+notes:
+  - "Set .env for API keys"
+  - "Service accounts need read-only for prod properties"
+  - "Use cron in GitHub Actions or Cloud Scheduler"
